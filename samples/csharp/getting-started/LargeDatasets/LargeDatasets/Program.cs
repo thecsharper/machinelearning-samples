@@ -8,7 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using LargeDatasets.DataStructures;
-using static Microsoft.ML.DataOperationsCatalog;
 
 namespace LargeDatasets
 {
@@ -29,7 +28,7 @@ namespace LargeDatasets
             //Step 2: Prepare data by adding second column with value total number of features.
             PrepareDataset(originalDataPath, preparedDataPath);
             
-            MLContext mlContext = new MLContext();
+            var mlContext = new MLContext();
 
             //STEP 3: Common data loading configuration  
             var fullDataView = mlContext.Data.LoadFromTextFile<UrlData>(path: Path.Combine(preparedDataPath, "*"),
@@ -37,9 +36,9 @@ namespace LargeDatasets
                                                       allowSparse: true);
 
             //Step 4: Divide the whole dataset into 80% training and 20% testing data.
-            TrainTestData trainTestData = mlContext.Data.TrainTestSplit(fullDataView, testFraction: 0.2, seed: 1);
-            IDataView trainDataView = trainTestData.TrainSet;
-            IDataView testDataView = trainTestData.TestSet;
+            var trainTestData = mlContext.Data.TrainTestSplit(fullDataView, testFraction: 0.2, seed: 1);
+            var trainDataView = trainTestData.TrainSet;
+            var testDataView = trainTestData.TestSet;
             
             //Step 5: Map label value from string to bool
             var UrlLabelMap = new Dictionary<string, bool>();
@@ -71,7 +70,7 @@ namespace LargeDatasets
             var sampleDatas = CreateSingleDataSample(mlContext, trainDataView);
             foreach (var sampleData in sampleDatas)
             {
-                UrlPrediction predictionResult = predEngine.Predict(sampleData);
+                var predictionResult = predEngine.Predict(sampleData);
                 Console.WriteLine($"Single Prediction --> Actual value: {sampleData.LabelColumn} | Predicted value: {predictionResult.Prediction}");
             }
             Console.WriteLine("====End of Process..Press any key to exit====");
@@ -90,14 +89,17 @@ namespace LargeDatasets
                     client.DownloadFile("https://archive.ics.uci.edu/ml/machine-learning-databases/url/url_svmlight.tar.gz", "url_svmlight.zip");
                 }
 
-                Stream inputStream = File.OpenRead("url_svmlight.zip");
-                Stream gzipStream = new GZipInputStream(inputStream);
-                TarArchive tarArchive = TarArchive.CreateInputTarArchive(gzipStream);
-                tarArchive.ExtractContents(originalDataDirectoryPath);
+                using (var inputStream = File.OpenRead("url_svmlight.zip"))
+                {
+                    var gzipStream = new GZipInputStream(inputStream);
+                    var tarArchive = TarArchive.CreateInputTarArchive(gzipStream);
+                    tarArchive.ExtractContents(originalDataDirectoryPath);
 
-                tarArchive.Close();
-                gzipStream.Close();
-                inputStream.Close();
+                    tarArchive.Close();
+                    gzipStream.Close();
+                    inputStream.Close();
+                }
+
                 Console.WriteLine("====Downloading and extracting is completed====");
             }
         }
@@ -134,17 +136,18 @@ namespace LargeDatasets
         
         private static void AddFeaturesColumn(string sourceFilePath,string preparedDataPath)
         {
-            string sourceFileName = Path.GetFileName(sourceFilePath);
-            string preparedFilePath = Path.Combine(preparedDataPath, sourceFileName);
+            var sourceFileName = Path.GetFileName(sourceFilePath);
+            var preparedFilePath = Path.Combine(preparedDataPath, sourceFileName);
 
             //if the file does not exist in preparedFilePath then copy from sourceFilePath and then add new column
             if (!File.Exists(preparedFilePath))
             {
                 File.Copy(sourceFilePath, preparedFilePath, true);
             }
-            string newColumnData =  "3231961";            
-            string[] CSVDump = File.ReadAllLines(preparedFilePath);            
-            List<List<string>> CSV = CSVDump.Select(x => x.Split(' ').ToList()).ToList();
+
+            var newColumnData =  "3231961";            
+            var CSVDump = File.ReadAllLines(preparedFilePath);            
+            var CSV = CSVDump.Select(x => x.Split(' ').ToList()).ToList();
             for (int i = 0; i < CSV.Count; i++)
             {
                 CSV[i].Insert(1, newColumnData);
@@ -155,17 +158,17 @@ namespace LargeDatasets
 
         public static string GetAbsolutePath(string relativePath)
         {
-            FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
-            string assemblyFolderPath = _dataRoot.Directory.FullName;
+            var _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
+            var assemblyFolderPath = _dataRoot.Directory.FullName;
 
-            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+            var fullPath = Path.Combine(assemblyFolderPath, relativePath);
 
             return fullPath;
         }
         private static List<UrlData> CreateSingleDataSample(MLContext mlContext, IDataView dataView)
         {
             // Here (ModelInput object) you could provide new test data, hardcoded or from the end-user application, instead of the row from the file.
-            List<UrlData> sampleForPredictions = mlContext.Data.CreateEnumerable<UrlData>(dataView, false).Take(4).ToList();                                                                        ;
+            var sampleForPredictions = mlContext.Data.CreateEnumerable<UrlData>(dataView, false).Take(4).ToList();                                                                        ;
             return sampleForPredictions;
         }      
     }
